@@ -4,7 +4,6 @@ plt.style.use('ggplot')
 
 
 class LogisticRegression:
-
     def __init__(self, learning_rate=0.1, n_epoch=100, penalty=None, C=0.01, tolerance=1e-4, pred_threshold=0.5):
         # parameters
         self.learning_rate = learning_rate
@@ -130,7 +129,7 @@ class LogisticRegression:
 
         return {'TP': TP, 'FN': FN, 'TN': TN, 'FP': FP}
 
-    def model_eval(self, y_test, y_pred):
+    def model_eval(self, y_test, y_pred, y_pred_proba):
         if not self.c_m_:  # if dict() is empty
             cm = self.confusion_matrix(y_test, y_pred)
             tp = cm['TP']
@@ -149,16 +148,44 @@ class LogisticRegression:
         specificity = tn / (tn + fp)
         fpr = fp / (fp + tn)
         f1_score = 2 * (precision * recall) /(precision + recall)
-        # auc_roc =
+
+        # calculating AUC ROC using a list of thresholds and np.trapz
+        tpr_, fpr_ = [], []
+        thresholds = np.arange(0.0, 1.01, 0.05)
+        total_positives = sum(y_test)
+        total_negatives = len(y_test) - total_positives
+
+        for threshold in thresholds:
+            false_positives, true_positives = 0, 0
+            for idx in range(len(y_pred_proba)):
+                if y_pred_proba[idx] >= threshold:
+                    if y_test[idx] == 1:
+                        true_positives += 1
+                    if y_test[idx] == 0:
+                        false_positives += 1
+            tpr_.append(true_positives/total_positives)
+            fpr_.append(false_positives/total_negatives)
+        auc_roc = -1 * np.trapz(tpr_, fpr_)
 
         return {'accuracy': accuracy,
                 'precision': precision,
                 'recall (TPR/sensitivity)': recall,
                 'specificity (TNR)': specificity,
-                'auc_roc': auc_roc,
                 'false_positive_rate': fpr,
-                'f1_score': f1_score}
+                'f1_score': f1_score,
+                'auc_roc': auc_roc}
 
+
+def predicted_logistic_curve():
+    pass
+
+
+def minimizing_cost_curve():
+    pass
+
+
+def decision_boundaries_plotting():
+    pass
 
 
 
