@@ -1,10 +1,11 @@
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
 
 class LogisticRegression:
-    def __init__(self, learning_rate=0.1, n_epoch=100, penalty=None, C=0.01, tolerance=1e-4, pred_threshold=0.5):
+    def __init__(self, learning_rate=0.005, n_epoch=100, penalty=None, C=0.01, tolerance=1e-4, pred_threshold=0.5):
         # parameters
         self.learning_rate = learning_rate
         self.n_epoch = n_epoch
@@ -19,21 +20,20 @@ class LogisticRegression:
         self.n_epoch_reached_ = 0
         self.pred_proba_ = None
         self.pred_ = None
-        self.c_m_ = dict()
-        self.model_eval_metrics_ = dict()
+        self.conf_mat_ = dict()
 
     @staticmethod
     def _logistic_sigmoid(z):
         predict_proba = 1 / (1 + np.exp(-z))
+        predict_proba = np.array(predict_proba)
         return predict_proba
 
     @classmethod
-    def _cross_entropy_loss(cls, X, y, thetas):
-        z = np.dot(X, thetas)
-        return -1 * (np.sum(y * np.log(cls._logistic_sigmoid(z)) + (1 - y) * np.log(1 - cls._logistic_sigmoid(z))))
+    def _cross_entropy_loss(cls, y_train, y_pred_proba):
+        return np.sum(-1 * (y_train * np.log(y_pred_proba) + (1 - y_train) * np.log(1 - y_pred_proba)))
 
     @classmethod
-    def _cross_entropy_loss_l1(cls, X, y, thetas, C):
+    def _cross_entropy_loss_l1(cls, y_train, y_pred_proba, thetas, C):
         """ L1 regularization with inverse of lambda represented with C (regularization parameter).
             This approach follows sklearn's regularized cost function for logistic regression.
 
@@ -41,12 +41,11 @@ class LogisticRegression:
         ----------
         https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
         """
-        z = np.dot(X, thetas)
-        l1_regularization = thetas
-        return C * -1 * (np.sum((y * np.log(cls._logistic_sigmoid(z))) + ((1 - y) * np.log(1 - cls._logistic_sigmoid(z)))) + l1_regularization)
+        l1_regularization = np.sum(np.absolute(thetas))
+        return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l1_regularization
 
     @classmethod
-    def _cross_entropy_loss_l2(cls, X, y, thetas, C):
+    def _cross_entropy_loss_l2(cls, y_train, y_pred_proba, thetas, C):
         """ L2 regularization with inverse of lambda represented with C (regularization parameter).
             This approach follows sklearn's regularized cost function for logistic regression.
 
@@ -54,9 +53,8 @@ class LogisticRegression:
         ----------
         https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
         """
-        z = np.dot(X, thetas)
         l2_regularization = 0.5 * thetas.T.dot(thetas)
-        return C * -1 * (np.sum((y * np.log(cls._logistic_sigmoid(z))) + ((1 - y) * np.log(1 - cls._logistic_sigmoid(z)))) + l2_regularization)
+        return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l2_regularization
 
     def fit(self, X_train, y_train):
         n_rows = X_train.shape[0]
@@ -69,27 +67,28 @@ class LogisticRegression:
         for _ in range(self.n_epoch):
             z = np.dot(X_train, thetas)
             y_pred_proba = self._logistic_sigmoid(z)
-            diffs = y_train - y_pred_proba
+            diffs = y_pred_proba - y_train
 
             if self.penalty == 'l2':
-                gradient_update_terms = self.learning_rate * (self.C * np.dot(X_train, diffs) + np.sum(thetas))
+                gradient_update_terms = self.learning_rate * (self.C * np.dot(diffs, X_train) + np.sum(thetas))
             elif self.penalty == 'l1':
-                gradient_update_terms = self.learning_rate * (self.C * np.dot(X_train, diffs) + np.sign(thetas))
-            else:
-                gradient_update_terms = self.learning_rate * np.dot(X_train, diffs)
-
-            self.n_epoch_reached_ += 1
+                gradient_update_terms = self.learning_rate * (self.C * np.dot(diffs, X_train) + np.sign(thetas))
+            elif self.penalty is None:
+                gradient_update_terms = self.learning_rate * np.dot(diffs, X_train)
 
             if np.all(abs(gradient_update_terms) >= tol):
-                # gradient descent updating step
-                thetas -= gradient_update_terms
                 # calculate and append cost per epoch
                 if self.penalty == 'l2':
-                    self.costs_.append(self._cross_entropy_loss_l2(X_train, y_train, thetas, self.C))
+                    self.costs_.append(self._cross_entropy_loss_l2(y_train, y_pred_proba, thetas, self.C))
                 elif self.penalty == 'l1':
-                    self.costs_.append(self._cross_entropy_loss_l1(X_train, y_train, thetas, self.C))
-                else:
-                    self.costs_.append(self._cross_entropy_loss(X_train, y_train, thetas))
+                    self.costs_.append(self._cross_entropy_loss_l1(y_train, y_pred_proba, thetas, self.C))
+                elif self.penalty is None:
+                    self.costs_.append(self._cross_entropy_loss(y_train, y_pred_proba))
+
+                # gradient descent updating step if gradient_update_terms (learning_rate * gradients) >= tol
+                thetas = thetas - gradient_update_terms
+                # n_epoch counter
+                self.n_epoch_reached_ += 1
             else:
                 break
 
@@ -103,10 +102,16 @@ class LogisticRegression:
         z = self.thetas_[0] + np.dot(X_test, self.thetas_[1:])
         self.pred_proba_ = self._logistic_sigmoid(z)
         self.pred_ = np.where(self.pred_proba_ > self.pred_threshold, 1, 0)
-        return self
+        return self.pred_
+
+    def predict_proba(self, X_test):
+        if self.pred_proba_ is None:
+            z = self.thetas_[0] + np.dot(X_test, self.thetas_[1:])
+            self.pred_proba_ = self._logistic_sigmoid(z)
+        return self.pred_proba_
 
     def confusion_matrix(self, y_test, y_pred):
-        TP, FN, TN, FP = 0, 0, 0, 0
+        tp, fn, tn, fp = 0, 0, 0, 0
         n_test, n_pred = len(y_test), len(y_pred)
 
         if n_test != n_pred:
@@ -114,57 +119,57 @@ class LogisticRegression:
         else:
             for idx in range(n_test):
                 if y_test[idx] == 1 and y_test[idx] == y_pred[idx]:
-                    TP += 1
+                    tp += 1
                 elif y_test[idx] == 1 and y_test[idx] != y_pred[idx]:
-                    FN += 1
+                    fn += 1
                 elif y_test[idx] == 0 and y_test[idx] == y_pred[idx]:
-                    TN += 1
+                    tn += 1
                 elif y_test[idx] == 0 and y_test[idx] != y_pred[idx]:
-                    FP += 1
+                    fp += 1
 
-        self.c_m_['TP'] = TP
-        self.c_m_['FN'] = FN
-        self.c_m_['TN'] = TN
-        self.c_m_['FP'] = FP
+        self.conf_mat_['TP'] = tp
+        self.conf_mat_['FN'] = fn
+        self.conf_mat_['TN'] = tn
+        self.conf_mat_['FP'] = fp
 
-        return {'TP': TP, 'FN': FN, 'TN': TN, 'FP': FP}
+        return {'TP': tp, 'FN': fn, 'TN': tn, 'FP': fp}
 
     def model_eval(self, y_test, y_pred, y_pred_proba):
-        if not self.c_m_:  # if dict() is empty
+        if not self.conf_mat_:  # if dict() is empty
             cm = self.confusion_matrix(y_test, y_pred)
             tp = cm['TP']
             fn = cm['FN']
             tn = cm['TN']
             fp = cm['FP']
         else:
-            tp = self.c_m_['TP']
-            fn = self.c_m_['FN']
-            tn = self.c_m_['TN']
-            fp = self.c_m_['FP']
+            tp = self.conf_mat_['TP']
+            fn = self.conf_mat_['FN']
+            tn = self.conf_mat_['TN']
+            fp = self.conf_mat_['FP']
 
         accuracy = (tp + tn) / (tp + fn + tn + fp)
         precision = tp / (tp + fp)
         recall = tp / (tp + fn)  # tpr and sensitivity
         specificity = tn / (tn + fp)
-        fpr = fp / (fp + tn)
-        f1_score = 2 * (precision * recall) /(precision + recall)
+        fpr = fp / (tn + fp)  # 1 - specificity
+        f1_score = 2 * (precision * recall) / (precision + recall)
 
         # calculating AUC ROC using a list of thresholds and np.trapz
         tpr_, fpr_ = [], []
-        thresholds = np.arange(0.0, 1.01, 0.05)
+        thresholds = np.arange(0.0, 1.0, 0.1)
         total_positives = sum(y_test)
         total_negatives = len(y_test) - total_positives
 
         for threshold in thresholds:
             false_positives, true_positives = 0, 0
-            for idx in range(len(y_pred_proba)):
-                if y_pred_proba[idx] >= threshold:
+            for idx, proba in enumerate(y_pred_proba):
+                if proba >= threshold:
                     if y_test[idx] == 1:
                         true_positives += 1
-                    if y_test[idx] == 0:
+                    else:
                         false_positives += 1
-            tpr_.append(true_positives/total_positives)
-            fpr_.append(false_positives/total_negatives)
+            tpr_.append(true_positives / total_positives)
+            fpr_.append(false_positives / total_negatives)
         auc_roc = -1 * np.trapz(tpr_, fpr_)
 
         return {'accuracy': accuracy,
@@ -176,16 +181,64 @@ class LogisticRegression:
                 'auc_roc': auc_roc}
 
 
-def predicted_logistic_curve():
-    pass
+def standardize_features(df) -> pd.DataFrame:
+    df = df.copy()
+    var_types = dict(df.dtypes != 'O')
+    numeric_vars = [var for var, is_numeric in var_types.items() if is_numeric == True]
+    for var in numeric_vars:
+        var_mean = df[var].mean()
+        var_std = df[var].std()
+        df[var] = round((df[var] - var_mean) / var_std, 10)
+    return df
 
 
-def minimizing_cost_curve():
-    pass
+def auc_roc_curve(y_actual, y_pred_proba):
+    """
+    :param y_actual: numpy array
+    :param y_pred_proba: numpy array
+    :return: matplotlib figure
+
+    References
+    -----------
+    https://mmuratarat.github.io/2019-10-01/how-to-compute-AUC-plot-ROC-by-hand
+    """
+
+    tpr_, fpr_ = [], []
+    thresholds = np.arange(0.0, 1.0, 0.1)
+    p = sum(y_actual)
+    n = len(y_actual) - p
+
+    for threshold in thresholds:
+        fp, tp = 0, 0
+        for idx, proba in enumerate(y_pred_proba):
+            if proba >= threshold:
+                if y_actual[idx] == 1:
+                    tp += 1
+                else:
+                    fp += 1
+        tpr_.append(tp/p)
+        fpr_.append(fp/n)
+    # calculate AUC ROC
+    auc = -np.trapz(tpr_, fpr_)
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr_, tpr_, linestyle='--', marker='.', color='darkorange', label='ROC Curve')
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--', lw=1)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC curve, AUC = %.4f' % auc)
+    plt.legend(loc = "lower right")
+    plt.savefig('AUC_example.png')
+    plt.tight_layout()
 
 
-def decision_boundaries_plotting():
-    pass
-
-
-
+def minimizing_cost_func_curve(costs, n_epoch_reached):
+    x_axis = [i for i in range(n_epoch_reached)]
+    plt.figure(figsize = (8, 6))
+    plt.title('Minimizing Cross-Entropy Loss (Negative Log-Likelihood)')
+    plt.xlabel('epoch iteration')
+    plt.ylabel('cross - entropy loss')
+    plt.plot(x_axis, costs, lw=1, linestyle='--')
+    plt.tight_layout()
