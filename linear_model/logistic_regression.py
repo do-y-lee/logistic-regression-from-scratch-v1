@@ -1,11 +1,13 @@
+import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
+np.seterr(divide='raise')
 
 
 class LogisticRegression:
-    def __init__(self, learning_rate=0.005, n_epoch=100, penalty=None, C=0.01, tolerance=1e-4, pred_threshold=0.5):
+    def __init__(self, learning_rate=0.01, n_epoch=100, penalty=None, C=0.01, tolerance=1e-4, pred_threshold=0.5):
         # parameters
         self.learning_rate = learning_rate
         self.n_epoch = n_epoch
@@ -30,7 +32,14 @@ class LogisticRegression:
 
     @classmethod
     def _cross_entropy_loss(cls, y_train, y_pred_proba):
-        return np.sum(-1 * (y_train * np.log(y_pred_proba) + (1 - y_train) * np.log(1 - y_pred_proba)))
+        try:
+            return np.sum(-1 * (y_train * np.log(y_pred_proba) + (1 - y_train) * np.log(1 - y_pred_proba)))
+        except (FloatingPointError, RuntimeError, RuntimeWarning) as err:
+            print(80*"-")
+            print(f"Suggestion: Standardize features and/or select smaller learning_rate (default=0.01) parameter.")
+            print(f"ErrorMessage: {err}")
+            print(80*"-")
+            sys.exit(1)
 
     @classmethod
     def _cross_entropy_loss_l1(cls, y_train, y_pred_proba, thetas, C):
@@ -41,20 +50,36 @@ class LogisticRegression:
         ----------
         https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
         """
-        l1_regularization = np.sum(np.absolute(thetas))
-        return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l1_regularization
+        try:
+            l1_regularization = np.sum(np.absolute(thetas))
+            return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l1_regularization
+        except (FloatingPointError, RuntimeError, RuntimeWarning) as err:
+            print(80*"-")
+            print(f"Suggestion: Standardize features and/or select smaller learning_rate (default=0.01) parameter.")
+            print(f"ErrorMessage: {err}")
+            print(80*"-")
+            sys.exit(1)
 
     @classmethod
     def _cross_entropy_loss_l2(cls, y_train, y_pred_proba, thetas, C):
-        """ L2 regularization with inverse of lambda represented with C (regularization parameter).
+        """
+        L2 regularization with inverse of lambda represented with C (regularization parameter).
             This approach follows sklearn's regularized cost function for logistic regression.
 
         References
         ----------
         https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
         """
-        l2_regularization = 0.5 * thetas.T.dot(thetas)
-        return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l2_regularization
+
+        try:
+            l2_regularization = 0.5 * thetas.T.dot(thetas)
+            return C * np.sum(-1 * (y_train*np.log(y_pred_proba) + (1-y_train)*np.log(1-y_pred_proba))) + l2_regularization
+        except (FloatingPointError, RuntimeError, RuntimeWarning) as err:
+            print(80*"-")
+            print(f"Suggestion: Standardize features and/or select smaller learning_rate (default=0.01) parameter.")
+            print(f"ErrorMessage: {err}")
+            print(80*"-")
+            sys.exit(1)
 
     def fit(self, X_train, y_train):
         n_rows = X_train.shape[0]
@@ -63,6 +88,7 @@ class LogisticRegression:
         thetas = np.zeros(n_features + 1)
         tol = self.tolerance * np.ones(n_features + 1)
         X_train = np.c_[np.ones(n_rows), np.array(X_train)]
+        y_train = np.array(y_train).ravel()
 
         for _ in range(self.n_epoch):
             z = np.dot(X_train, thetas)
@@ -202,6 +228,8 @@ def auc_roc_curve(y_actual, y_pred_proba):
     -----------
     https://mmuratarat.github.io/2019-10-01/how-to-compute-AUC-plot-ROC-by-hand
     """
+    y_actual = y_actual.ravel()
+    y_pred_proba = y_pred_proba.ravel()
 
     tpr_, fpr_ = [], []
     thresholds = np.arange(0.0, 1.0, 0.1)
@@ -219,7 +247,7 @@ def auc_roc_curve(y_actual, y_pred_proba):
         tpr_.append(tp/p)
         fpr_.append(fp/n)
     # calculate AUC ROC
-    auc = -np.trapz(tpr_, fpr_)
+    auc = -1 * np.trapz(tpr_, fpr_)
 
     plt.figure(figsize=(8, 6))
     plt.plot(fpr_, tpr_, linestyle='--', marker='.', color='darkorange', label='ROC Curve')
@@ -230,8 +258,8 @@ def auc_roc_curve(y_actual, y_pred_proba):
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve, AUC = %.4f' % auc)
     plt.legend(loc = "lower right")
-    plt.savefig('AUC_example.png')
-    plt.tight_layout()
+    # plt.savefig('AUC_example.png')
+    plt.show()
 
 
 def minimizing_cost_func_curve(costs, n_epoch_reached):
@@ -239,6 +267,6 @@ def minimizing_cost_func_curve(costs, n_epoch_reached):
     plt.figure(figsize = (8, 6))
     plt.title('Minimizing Cross-Entropy Loss (Negative Log-Likelihood)')
     plt.xlabel('epoch iteration')
-    plt.ylabel('cross - entropy loss')
+    plt.ylabel('cross-entropy loss')
     plt.plot(x_axis, costs, lw=1, linestyle='--')
-    plt.tight_layout()
+    plt.show()
