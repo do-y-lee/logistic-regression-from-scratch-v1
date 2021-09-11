@@ -16,3 +16,14 @@
 * pred_: predicted class per instance
 * conf_mat_: confusion matrix
 
+## Methods
+* fit(self, X_train, y_train)
+* predict(self, X_test)
+* predict_proba(self, X_test)
+* confusion_matrix(self, y_test, y_pred)
+* model_evel(self, y_test, y_pred, y_pred_proba)
+
+## Functions
+* standardize_features(df)
+* auc_roc_curve(y_actual, y_pred_proba)
+* minimizing_cost_func_curve(costs, n_epoch_reached)
