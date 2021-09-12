@@ -11,7 +11,7 @@ class LogisticRegression:
         # parameters
         self.learning_rate = learning_rate
         self.n_epoch = n_epoch
-        self.penalty = penalty
+        self.penalty = penalty  # None, 'l1', 'l2'
         self.C = C  # 1/lambda; inverse lambda regularization parameter
         self.tolerance = tolerance
         self.pred_threshold = pred_threshold
