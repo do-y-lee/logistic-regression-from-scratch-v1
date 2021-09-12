@@ -161,6 +161,10 @@ class LogisticRegression:
         return {'TP': tp, 'FN': fn, 'TN': tn, 'FP': fp}
 
     def model_eval(self, y_test, y_pred, y_pred_proba):
+        y_test = np.array(y_test).ravel()
+        y_pred = np.array(y_pred).ravel()
+        y_pred_proba = np.array(y_pred_proba).ravel()
+
         if not self.conf_mat_:  # if dict() is empty
             cm = self.confusion_matrix(y_test, y_pred)
             tp = cm['TP']
