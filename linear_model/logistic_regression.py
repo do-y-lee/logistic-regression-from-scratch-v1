@@ -236,7 +236,7 @@ def auc_roc_curve(y_actual, y_pred_proba):
     y_pred_proba = y_pred_proba.ravel()
 
     tpr_, fpr_ = [], []
-    thresholds = np.arange(0.0, 1.0, 0.1)
+    thresholds = np.arange(0, 1, 0.1)
     p = sum(y_actual)
     n = len(y_actual) - p
 
@@ -254,21 +254,18 @@ def auc_roc_curve(y_actual, y_pred_proba):
     auc = -1 * np.trapz(tpr_, fpr_)
 
     plt.figure(figsize=(8, 6))
-    plt.plot(fpr_, tpr_, linestyle='--', marker='.', color='darkorange', label='ROC Curve')
-    plt.plot([0, 1], [0, 1], color='navy', linestyle='--', lw=1)
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.0])
+    plt.plot(fpr_, tpr_, linestyle='--', marker='.', color='orange', label='ROC Curve')
+    plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1)
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC curve, AUC = %.4f' % auc)
-    plt.legend(loc = "lower right")
-    # plt.savefig('AUC_example.png')
+    plt.title(f'ROC Curve, AUC={round(auc, 6)}')
+    plt.legend(loc="lower right")
     plt.show()
 
 
 def minimizing_cost_func_curve(costs, n_epoch_reached):
     x_axis = [i for i in range(n_epoch_reached)]
-    plt.figure(figsize = (8, 6))
+    plt.figure(figsize=(8, 6))
     plt.title('Minimizing Cross-Entropy Loss (Negative Log-Likelihood)')
     plt.xlabel('epoch iteration')
     plt.ylabel('cross-entropy loss')
