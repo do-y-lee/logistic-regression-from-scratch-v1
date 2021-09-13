@@ -1,7 +1,5 @@
 # Logistic Regression with L1 & L2 Regularization
 
----
-
 ## Overview
 
 > Logistic regression uses linearly combined features and the sigmoid function to convert 
