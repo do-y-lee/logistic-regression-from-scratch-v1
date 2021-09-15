@@ -81,6 +81,11 @@ auc_roc_curve(y_train, logit.pred_proba_)
 minimizing_cost_func_curve(logit.costs_, logit.n_epoch_reached_)
 ```
 
+## Future Additions
+* Learning rate - hyperparameter tuning 
+* Mini-batch gradient descent
+* Full unit testing code
+
 
 ## References
 * https://explained.ai/regularization/L1vsL2.html
