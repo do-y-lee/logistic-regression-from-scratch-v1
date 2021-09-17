@@ -42,7 +42,7 @@
 * predict(self, X_test)
 * predict_proba(self, X_test)
 * confusion_matrix(self, y_test, y_pred)
-* model_evel(self, y_test, y_pred, y_pred_proba)
+* model_eval(self, y_test, y_pred, y_pred_proba)
 
 ### Functions
 * standardize_features(df)
