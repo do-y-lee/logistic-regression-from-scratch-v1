@@ -92,3 +92,6 @@ minimizing_cost_func_curve(logit.costs_, logit.n_epoch_reached_)
 * https://en.wikipedia.org/wiki/Regularization_(mathematics)
 * https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
 * https://web.stanford.edu/~jurafsky/slp3/5.pdf
+* https://visualstudiomagazine.com/articles/2017/09/01/neural-network-l2.aspx
+* https://machinelearningmastery.com/difference-between-backpropagation-and-stochastic-gradient-descent/
+* https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall
